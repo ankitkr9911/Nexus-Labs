@@ -22,11 +22,23 @@ class Settings(BaseSettings):
     # Deepgram
     DEEPGRAM_API_KEY: str = ""
     
+    # Vapi.ai Voice Agent
+    VAPI_API_KEY: str = ""
+    VAPI_PUBLIC_KEY: str = ""
+    VAPI_ASSISTANT_ID: str = ""
+    
+    # LiveKit Voice Agent (optional)
+    LIVEKIT_URL: str = ""
+    LIVEKIT_API_KEY: str = ""
+    LIVEKIT_API_SECRET: str = ""
+    
     # Google OAuth & APIs
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/auth/google/callback"
     GOOGLE_MAPS_API_KEY: str = ""
+    GOOGLE_API_KEY: str = ""  # Gemini API
+    GEMINI_API_KEY: str = ""
     
     # Spotify OAuth
     SPOTIFY_CLIENT_ID: str = ""
@@ -51,6 +63,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Ignore extra fields from .env
 
 
 # Global settings instance
