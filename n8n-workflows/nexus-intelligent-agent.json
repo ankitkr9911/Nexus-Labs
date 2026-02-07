@@ -1,0 +1,449 @@
+{
+  "name": "NEXUS Intelligent Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "nexus-intelligent-agent"
+    },
+    {
+      "parameters": {
+        "model": "gemini-1.5-pro-latest",
+        "prompt": "=You are the intelligent decision-making brain of NEXUS AI, a voice-first automation platform.\n\n**Your task:** Analyze the user's request and decide:\n1. Which service to use (gmail / maps / general)\n2. What specific action to take\n3. Extract all necessary parameters\n\n**User Request:**\n{{ $json.body.user_request }}\n\n**Available Context:**\n{{ $json.body.context || 'No previous context' }}\n\n**Available Services & Actions:**\n\n**Gmail:**\n- summarize: Get recent emails (filters: from, subject, time_range)\n- reply: Send a reply (needs: message_id, reply_text)\n- search: Find specific emails (needs: query)\n\n**Google Maps:**\n- distance: Calculate travel time (needs: origin, destination, mode)\n- directions: Get navigation (needs: origin, destination, mode)\n\n**General:**\n- clarify: Need more information from user\n- error: Cannot fulfill request\n\n**Output ONLY valid JSON in this exact format:**\n```json\n{\n  \"service\": \"gmail|maps|general\",\n  \"action\": \"specific_action_name\",\n  \"parameters\": {\n    \"key\": \"value\"\n  },\n  \"reasoning\": \"brief explanation of decision\",\n  \"needs_clarification\": false,\n  \"clarification_question\": null\n}\n```\n\n**Examples:**\n\nUser: \"Summarize my emails from yesterday\"\n```json\n{\n  \"service\": \"gmail\",\n  \"action\": \"summarize\",\n  \"parameters\": {\n    \"time_range\": \"yesterday\",\n    \"max_results\": 10\n  },\n  \"reasoning\": \"User wants email summary with time filter\",\n  \"needs_clarification\": false,\n  \"clarification_question\": null\n}\n```\n\nUser: \"How far is Mumbai from Delhi?\"\n```json\n{\n  \"service\": \"maps\",\n  \"action\": \"distance\",\n  \"parameters\": {\n    \"origin\": \"Mumbai\",\n    \"destination\": \"Delhi\",\n    \"mode\": \"driving\"\n  },\n  \"reasoning\": \"User needs distance calculation between two cities\",\n  \"needs_clarification\": false,\n  \"clarification_question\": null\n}\n```\n\nUser: \"Reply to that\"\n```json\n{\n  \"service\": \"general\",\n  \"action\": \"clarify\",\n  \"parameters\": {},\n  \"reasoning\": \"Reference to 'that' without context\",\n  \"needs_clarification\": true,\n  \"clarification_question\": \"What would you like to reply to? Could you provide more details?\"\n}\n```\n\n**Now analyze the user's request and respond with ONLY the JSON output:**",
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 500
+        }
+      },
+      "id": "gemini-decision-maker",
+      "name": "Gemini Decision Maker",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "1",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Gemini's JSON response\nconst geminiOutput = $input.first().json.output;\n\nlet decision;\ntry {\n  // Extract JSON from markdown code blocks if present\n  const jsonMatch = geminiOutput.match(/```json\\s*([\\s\\S]*?)\\s*```/);\n  const jsonString = jsonMatch ? jsonMatch[1] : geminiOutput;\n  decision = JSON.parse(jsonString);\n} catch (error) {\n  return [{\n    json: {\n      error: true,\n      message: \"Failed to parse Gemini decision\",\n      raw_output: geminiOutput\n    }\n  }];\n}\n\n// Validate decision structure\nif (!decision.service || !decision.action) {\n  return [{\n    json: {\n      error: true,\n      message: \"Invalid decision format\",\n      decision: decision\n    }\n  }];\n}\n\n// Return structured decision\nreturn [{\n  json: {\n    service: decision.service,\n    action: decision.action,\n    parameters: decision.parameters || {},\n    reasoning: decision.reasoning,\n    needs_clarification: decision.needs_clarification || false,\n    clarification_question: decision.clarification_question,\n    raw_response: geminiOutput\n  }\n}];"
+      },
+      "id": "parse-decision",
+      "name": "Parse Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.service }}",
+              "operation": "equals",
+              "value2": "gmail"
+            }
+          ]
+        }
+      },
+      "id": "route-gmail",
+      "name": "Route: Gmail",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.service }}",
+              "operation": "equals",
+              "value2": "maps"
+            }
+          ]
+        }
+      },
+      "id": "route-maps",
+      "name": "Route: Maps",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equals",
+              "value2": "summarize"
+            }
+          ]
+        }
+      },
+      "id": "gmail-action-switch",
+      "name": "Gmail Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [1050, 200],
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "operation": "equals",
+                    "value2": "summarize"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "summarize"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "operation": "equals",
+                    "value2": "reply"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "reply"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "operation": "equals",
+                    "value2": "search"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "search"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": "={{ $json.parameters.max_results || 10 }}",
+        "filters": {
+          "query": "={{ $json.parameters.query || 'is:unread' }}"
+        }
+      },
+      "id": "gmail-get-emails",
+      "name": "Gmail: Get Emails",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1250, 150],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "2",
+          "name": "Gmail OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gemini-powered email summarization\nconst emails = $input.all().map(item => item.json);\n\nif (emails.length === 0) {\n  return [{\n    json: {\n      success: true,\n      summary: \"You have no new emails.\",\n      count: 0,\n      emails: []\n    }\n  }];\n}\n\n// Format emails for Gemini to summarize\nconst emailList = emails.map((email, idx) => {\n  const from = email.from?.emailAddress?.address || 'Unknown';\n  const subject = email.subject || 'No subject';\n  const snippet = email.snippet || '';\n  const date = email.internalDate ? new Date(parseInt(email.internalDate)).toLocaleString() : 'Unknown';\n  \n  return `${idx + 1}. From: ${from}\\n   Subject: ${subject}\\n   Date: ${date}\\n   Preview: ${snippet}\\n`;\n}).join('\\n');\n\nreturn [{\n  json: {\n    email_count: emails.length,\n    emails_raw: emails,\n    formatted_list: emailList,\n    // This will be enhanced by Gemini summarization node\n    summary_request: `Please provide a concise, natural summary of these ${emails.length} emails. Highlight important senders, urgent topics, and key information:\\n\\n${emailList}`\n  }\n}];"
+      },
+      "id": "format-email-summary",
+      "name": "Format Email Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 150]
+    },
+    {
+      "parameters": {
+        "model": "gemini-1.5-flash",
+        "prompt": "={{ $json.summary_request }}",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 300
+        }
+      },
+      "id": "gemini-summarize",
+      "name": "Gemini: Summarize",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [1650, 150],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "1",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $json.parameters.to }}",
+        "subject": "={{ $json.parameters.subject }}",
+        "message": "={{ $json.parameters.reply_text }}",
+        "options": {
+          "threadId": "={{ $json.parameters.message_id }}"
+        }
+      },
+      "id": "gmail-send-reply",
+      "name": "Gmail: Send Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1250, 250],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "2",
+          "name": "Gmail OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://maps.googleapis.com/maps/api/distancematrix/json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "origins",
+              "value": "={{ $json.parameters.origin || 'current+location' }}"
+            },
+            {
+              "name": "destinations",
+              "value": "={{ $json.parameters.destination }}"
+            },
+            {
+              "name": "mode",
+              "value": "={{ $json.parameters.mode || 'driving' }}"
+            },
+            {
+              "name": "key",
+              "value": "={{ $credentials.apiKey }}"
+            }
+          ]
+        }
+      },
+      "id": "maps-distance",
+      "name": "Maps: Distance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 350],
+      "credentials": {
+        "googleApi": {
+          "id": "3",
+          "name": "Google API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Maps response with Gemini enhancement\nconst response = $input.first().json;\n\nif (response.status !== 'OK') {\n  return [{\n    json: {\n      success: false,\n      error: response.status,\n      message: \"Could not calculate distance\"\n    }\n  }];\n}\n\nconst element = response.rows[0].elements[0];\n\nif (element.status !== 'OK') {\n  return [{\n    json: {\n      success: false,\n      error: element.status,\n      message: \"Route not found\"\n    }\n  }];\n}\n\nconst distance = element.distance.text;\nconst duration = element.duration.text;\nconst origin = response.origin_addresses[0];\nconst destination = response.destination_addresses[0];\n\nreturn [{\n  json: {\n    success: true,\n    distance: distance,\n    duration: duration,\n    origin: origin,\n    destination: destination,\n    summary: `It's ${distance} from ${origin} to ${destination}, taking approximately ${duration} by ${response.mode || 'driving'}.`,\n    maps_url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=${response.mode || 'driving'}`\n  }\n}];"
+      },
+      "id": "format-maps-response",
+      "name": "Format Maps Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"needs_clarification\": true, \"question\": $json.clarification_question } }}"
+      },
+      "id": "respond-clarification",
+      "name": "Respond: Clarification",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 650]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Gemini Decision Maker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Decision Maker": {
+      "main": [
+        [
+          {
+            "node": "Parse Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Decision": {
+      "main": [
+        [
+          {
+            "node": "Route: Gmail",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route: Maps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route: Gmail": {
+      "main": [
+        [
+          {
+            "node": "Gmail Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route: Maps": {
+      "main": [
+        [
+          {
+            "node": "Maps: Distance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Action": {
+      "main": [
+        [
+          {
+            "node": "Gmail: Get Emails",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail: Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: Get Emails": {
+      "main": [
+        [
+          {
+            "node": "Format Email Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Email Summary": {
+      "main": [
+        [
+          {
+            "node": "Gemini: Summarize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini: Summarize": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: Send Reply": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Maps: Distance": {
+      "main": [
+        [
+          {
+            "node": "Format Maps Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Maps Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-02-05T00:00:00.000Z",
+  "versionId": "1"
+}

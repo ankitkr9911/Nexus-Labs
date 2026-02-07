@@ -1,0 +1,97 @@
+# Environment variables (CRITICAL - Contains API keys)
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+Human in the loop/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/venv/
+backend/env/
+venv/
+env/
+ENV/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Database files (Local development data)
+*.db
+*.sqlite
+*.sqlite3
+backend/nexus_ai.db
+backend/*.db
+
+# Logs
+*.log
+logs/
+Human in the loop/logs/
+*.log.*
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Human in the loop project (separate project)
+Human in the loop/
+
+# Node modules (if any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker volumes (local data)
+n8n-data/
+postgres-data/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Documentation (optional - uncomment if you want to exclude)
+# IMPLEMENTATION_COMPLETE.md
+# IMPLEMENTATION_V2_COMPLETE.md
+# PROJECT_STATUS.md
+# TROUBLESHOOTING.md
+# VISUAL_ARCHITECTURE.md
+# ARCHITECTURE.md
+# ARCHITECTURE_V2.md
+
+# Personal scripts
+start_demo.bat
+start_demo.sh
+

@@ -1,0 +1,44 @@
+{
+  "name": "Spotify Control",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "spotify-control",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Spotify API integration\nconst accessToken = $json.access_token;\nconst action = $json.action;\nconst query = $json.query;\n\nconst headers = {\n  'Authorization': `Bearer ${accessToken}`,\n  'Content-Type': 'application/json'\n};\n\nlet result = {};\n\ntry {\n  if (action === 'play' && query) {\n    // Search for track\n    const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`;\n    const searchResponse = await $http.get(searchUrl, { headers });\n    \n    if (searchResponse.data.tracks.items.length > 0) {\n      const track = searchResponse.data.tracks.items[0];\n      \n      // Start playback\n      await $http.put('https://api.spotify.com/v1/me/player/play', {\n        headers,\n        body: { uris: [track.uri] }\n      });\n      \n      result = {\n        status: 'playing',\n        track: {\n          name: track.name,\n          artist: track.artists[0].name,\n          uri: track.uri,\n          url: track.external_urls.spotify\n        }\n      };\n    } else {\n      result = { error: `No tracks found for '${query}'` };\n    }\n  } else if (action === 'pause') {\n    await $http.put('https://api.spotify.com/v1/me/player/pause', { headers });\n    result = { status: 'paused' };\n  } else if (action === 'resume') {\n    await $http.put('https://api.spotify.com/v1/me/player/play', { headers });\n    result = { status: 'playing' };\n  }\n} catch (error) {\n  result = { error: error.message };\n}\n\nreturn [{ json: result }];"
+      },
+      "name": "Spotify Control Logic",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Spotify Control Logic", "type": "main", "index": 0}]]
+    },
+    "Spotify Control Logic": {
+      "main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]
+    }
+  }
+}

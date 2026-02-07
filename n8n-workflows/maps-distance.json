@@ -1,0 +1,44 @@
+{
+  "name": "Maps Distance Calculator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "maps-distance",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Calculate distance for multiple modes\nconst origin = $json.origin;\nconst destination = $json.destination;\nconst modes = $json.modes || ['driving', 'walking', 'transit'];\nconst apiKey = $json.api_key;\n\nconst results = {};\n\nfor (const mode of modes) {\n  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(origin)}&destinations=${encodeURIComponent(destination)}&mode=${mode}&key=${apiKey}`;\n  \n  const response = await $http.get(url);\n  \n  if (response.data.status === 'OK') {\n    const element = response.data.rows[0].elements[0];\n    if (element.status === 'OK') {\n      results[mode] = {\n        distance: element.distance.text,\n        duration: element.duration.text,\n        distance_value: element.distance.value,\n        duration_value: element.duration.value\n      };\n    }\n  }\n}\n\nreturn [{ json: { origin, destination, results } }];"
+      },
+      "name": "Calculate Distance",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Calculate Distance", "type": "main", "index": 0}]]
+    },
+    "Calculate Distance": {
+      "main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]
+    }
+  }
+}

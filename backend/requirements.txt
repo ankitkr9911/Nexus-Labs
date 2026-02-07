@@ -1,0 +1,40 @@
+# FastAPI Core
+fastapi
+uvicorn[standard]
+python-multipart
+websockets
+
+# Database
+sqlalchemy
+aiosqlite
+
+# Authentication & Security
+python-jose[cryptography]
+passlib[bcrypt]
+python-dotenv
+
+# Voice Processing
+deepgram-sdk
+soundfile
+numpy
+
+# Google APIs
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+
+# Spotify
+spotipy
+
+# HTTP Client
+httpx
+requests
+
+# Utilities
+pydantic
+pydantic-settings
+python-dateutil
+
+# CORS
+fastapi-cors
