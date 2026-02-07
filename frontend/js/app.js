@@ -1,29 +1,17 @@
 /**
- * Main Application Logic
- * Orchestrates voice input, API calls, and UI updates
+ * Main Application Logic - VAPI Only Version
+ * Simple orchestration for VAPI voice agent
  */
 
 class NexusApp {
     constructor() {
         this.API_BASE_URL = 'http://localhost:8000/api';
         this.ui = new UIManager();
-        
-        // Use Web Speech API by default (simpler for demo)
-        this.speechRecognition = new WebSpeechRecognition();
-        
-        // Fallback to manual recording if needed
-        this.voiceCapture = new VoiceCapture();
-        this.useWebSpeech = this.speechRecognition.isSupported();
-        
         this.init();
     }
 
     init() {
-        // Event Listeners
-        document.getElementById('voice-btn').addEventListener('click', () => {
-            this.handleVoiceButton();
-        });
-
+        // Event Listeners for text input only
         document.getElementById('send-btn').addEventListener('click', () => {
             this.handleSendButton();
         });
@@ -38,70 +26,29 @@ class NexusApp {
             this.ui.clearTranscript();
         });
 
+        // Hide Quick Voice button (not needed with VAPI)
+        const quickVoiceBtn = document.getElementById('voice-btn');
+        if (quickVoiceBtn) {
+            quickVoiceBtn.style.display = 'none';
+        }
+
         // Load service status
         this.checkServiceStatus();
 
         console.log('✅ NEXUS AI initialized');
-        console.log('🎤 Voice input method:', this.useWebSpeech ? 'Web Speech API' : 'MediaRecorder');
+        console.log('🎤 Voice: Using VAPI cloud agent');
     }
 
-    // Voice Button Handler
-    async handleVoiceButton() {
-        if (this.useWebSpeech) {
-            this.handleWebSpeechInput();
-        } else {
-            await this.handleMediaRecorderInput();
-        }
-    }
+    // Text Input Handler
+    async handleSendButton() {
+        const input = document.getElementById('text-input');
+        const text = input.value.trim();
 
-    // Web Speech API Method (Simpler, works in Chrome/Edge)
-    handleWebSpeechInput() {
-        if (this.speechRecognition.isCurrentlyListening()) {
-            this.speechRecognition.stopListening();
-            this.ui.setRecordingState(false);
-            return;
-        }
+        if (!text) return;
 
-        this.ui.setRecordingState(true);
-
-        this.speechRecognition.startListening(
-            (transcript) => {
-                console.log('Transcript:', transcript);
-                this.ui.setRecordingState(false);
-                this.ui.updateTranscript(transcript);
-                this.ui.addUserMessage(transcript);
-                this.processCommand(transcript);
-            },
-            (error) => {
-                console.error('Speech recognition error:', error);
-                this.ui.setRecordingState(false);
-                this.ui.addSystemMessage('Error: Could not recognize speech. Please try again.');
-            }
-        );
-    }
-
-    // MediaRecorder Method (For custom audio processing)
-    async handleMediaRecorderInput() {
-        if (this.voiceCapture.isCurrentlyRecording()) {
-            // Stop recording
-            try {
-                const audioBlob = await this.voiceCapture.stopRecording();
-                this.ui.setRecordingState(false);
-
-                // Convert to base64 and send to backend
-                await this.sendAudioToBackend(audioBlob);
-
-            } catch (error) {
-                console.error('Error stopping recording:', error);
-                this.ui.addSystemMessage('Error processing audio.');
-            }
-        } else {
-            // Start recording
-            const success = await this.voiceCapture.startRecording();
-            if (success) {
-                this.ui.setRecordingState(true);
-            }
-        }
+        input.value = '';
+        this.ui.addUserMessage(text);
+        await this.processCommand(text);
     }
 
     // Send audio to backend for Deepgram transcription
@@ -240,7 +187,6 @@ class NexusApp {
                 const status = await response.json();
                 
                 this.ui.updateServiceStatus('gmail', status.gmail);
-                this.ui.updateServiceStatus('spotify', status.spotify);
                 this.ui.updateServiceStatus('maps', status.maps);
             }
 

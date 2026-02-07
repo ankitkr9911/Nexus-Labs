@@ -19,17 +19,12 @@
             <div class="status-item" id="gmail-status">
                 <span class="status-icon">📧</span>
                 <span class="status-text">Gmail</span>
-                <span class="status-badge disconnected">Disconnected</span>
+                <span class="status-badge disconnected">Ready</span>
             </div>
             <div class="status-item" id="maps-status">
                 <span class="status-icon">🗺️</span>
                 <span class="status-text">Maps</span>
-                <span class="status-badge disconnected">Disconnected</span>
-            </div>
-            <div class="status-item" id="spotify-status">
-                <span class="status-icon">🎵</span>
-                <span class="status-text">Spotify</span>
-                <span class="status-badge disconnected">Disconnected</span>
+                <span class="status-badge disconnected">Ready</span>
             </div>
         </div>
 
@@ -38,13 +33,19 @@
             <div id="chat-messages" class="chat-messages">
                 <div class="message system">
                     <div class="message-content">
-                        <p>Welcome to NEXUS AI! I can help you with:</p>
-                        <ul>
-                            <li>📧 Gmail - Summarize and reply to emails</li>
-                            <li>🗺️ Google Maps - Get directions and travel times</li>
-                            <li>🎵 Spotify - Control music playback</li>
-                        </ul>
-                        <p>Click the microphone to start speaking, or type a command below.</p>
+                        <p><strong>Welcome to NEXUS AI!</strong></p>
+                        <p>Your intelligent voice assistant for productivity automation.</p>
+                        <div class="capabilities">
+                            <div class="capability-item">
+                                <span class="capability-icon">📧</span>
+                                <span class="capability-text"><strong>Gmail</strong> - Check, summarize and reply to emails</span>
+                            </div>
+                            <div class="capability-item">
+                                <span class="capability-icon">🗺️</span>
+                                <span class="capability-text"><strong>Maps</strong> - Get directions, distances and travel times</span>
+                            </div>
+                        </div>
+                        <p class="instruction-text">Click "Talk to AI" to start a voice conversation, or type your command below.</p>
                     </div>
                 </div>
             </div>
@@ -52,12 +53,12 @@
             <!-- Input Area -->
             <div class="input-area">
                 <div class="voice-controls">
-                    <button id="voice-btn" class="voice-btn" title="Click to speak">
+                    <button id="vapi-voice-btn" class="voice-btn vapi-btn" title="Start voice conversation">
                         <span class="mic-icon">🎤</span>
-                        <span class="status-text">Tap to Speak</span>
+                        <span class="status-text">Talk to AI</span>
                     </button>
-                    <div id="recording-indicator" class="recording-indicator hidden">
-                        <span class="pulse"></span>
+                    <div id="vapi-status" class="vapi-status hidden">
+                        <span class="pulse-green"></span>
                         <span>Listening...</span>
                     </div>
                 </div>
@@ -95,8 +96,8 @@
     </div>
 
     <!-- Scripts -->
-    <script src="js/voice.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/vapi.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

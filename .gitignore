@@ -5,6 +5,7 @@
 backend/.env
 frontend/.env
 Human in the loop/.env
+voice_agent/.env
 
 # Python
 __pycache__/
@@ -45,7 +46,7 @@ Human in the loop/logs/
 Thumbs.db
 
 # Human in the loop project (separate project)
-Human in the loop/
+XRAY_Agent/
 
 # Node modules (if any)
 node_modules/
