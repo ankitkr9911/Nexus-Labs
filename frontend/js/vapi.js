@@ -44,12 +44,14 @@ class VapiClient {
             console.log('🎤 Listening...');
             this.isListening = true;
             this.updateUI('listening');
+            this.updateStatus('Listening...', 'Speak your command');
         };
 
         this.recognition.onend = () => {
             console.log('🔇 Stopped listening');
             this.isListening = false;
-            this.updateUI('disconnected');
+            this.updateUI('idle');
+            this.updateStatus('Ready to assist', 'Press the button to start talking');
         };
 
         this.recognition.onresult = (event) => {
@@ -105,14 +107,19 @@ class VapiClient {
      * Stop listening
      */
     stopCall() {
-        if (!this.recognition || !this.isListening) {
-            return;
+        // Stop speech recognition
+        if (this.recognition && this.isListening) {
+            try {
+                this.recognition.stop();
+            } catch (error) {
+                console.error('❌ Failed to stop listening:', error);
+            }
         }
-
-        try {
-            this.recognition.stop();
-        } catch (error) {
-            console.error('❌ Failed to stop listening:', error);
+        
+        // Stop any ongoing speech synthesis
+        if ('speechSynthesis' in window) {
+            speechSynthesis.cancel();
+            console.log('🔇 Stopped speaking');
         }
     }
 
@@ -131,8 +138,24 @@ class VapiClient {
      * Handle voice command
      */
     async handleCommand(text) {
-        // Add to chat
-        this.addMessage('user', text);
+        console.log('💬 Processing:', text);
+
+        // Check if user wants directions (after getting distance info)
+        if (text.toLowerCase().includes('direction') || text.toLowerCase().includes('navigate') || text.toLowerCase().includes('give me directions')) {
+            // Check if we have stored location data
+            if (window.lastLocationData) {
+                const { origin, destination } = window.lastLocationData;
+                const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+                window.open(mapsUrl, '_blank');
+                this.updateStatus('Opening Maps...', 'Redirecting to Google Maps');
+                this.speak('Opening Google Maps with your route');
+                return;
+            }
+        }
+
+        // Show processing state
+        this.updateUI('processing');
+        this.updateStatus('Processing...', 'NEXUS AI is thinking');
 
         // Send to backend
         try {
@@ -145,13 +168,22 @@ class VapiClient {
             const data = await response.json();
             
             if (data.response) {
-                this.addMessage('assistant', data.response);
+                // Store location data if this is a maps query
+                if (data.service === 'maps' && (data.origin || data.destination)) {
+                    window.lastLocationData = {
+                        origin: data.origin || data.data?.origin || data.data?.parameters?.origin,
+                        destination: data.destination || data.data?.destination || data.data?.parameters?.destination
+                    };
+                    console.log('📍 Stored location data:', window.lastLocationData);
+                }
+                
                 // Speak the response
                 this.speak(data.response);
             }
         } catch (error) {
             console.error('❌ Failed to send command:', error);
-            this.addMessage('system', 'Failed to process command. Please try again.');
+            this.updateStatus('Error', 'Failed to process command');
+            this.speak('Sorry, I encountered an error. Please try again.');
         }
     }
 
@@ -160,97 +192,67 @@ class VapiClient {
      */
     speak(text) {
         if ('speechSynthesis' in window) {
-            // Strip markdown formatting before speaking
+            // Strip all markdown and special formatting before speaking
             const cleanText = text
                 .replace(/\*\*/g, '')  // Remove bold **
                 .replace(/\*/g, '')    // Remove italic *
-                .replace(/#{1,6}\s/g, '')  // Remove headers
+                .replace(/#{1,6}\s/g, '')  // Remove headers ###
+                .replace(/---+/g, '')  // Remove horizontal rules ---
+                .replace(/\.\.\./g, '')  // Remove ellipsis ...
                 .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')  // Remove links, keep text
-                .replace(/`/g, '');    // Remove code backticks
+                .replace(/`/g, '')     // Remove code backticks
+                .replace(/~/g, '')     // Remove strikethrough ~
+                .replace(/\|/g, '')    // Remove table pipes
+                .replace(/>/g, '')     // Remove blockquotes >
+                .replace(/\n\n+/g, '. ')  // Replace double newlines with period
+                .replace(/\n/g, ' ')   // Replace single newlines with space
+                .trim();
             
             const utterance = new SpeechSynthesisUtterance(cleanText);
             utterance.rate = 1.0;
             utterance.pitch = 1.0;
+            
+            // Update UI when speaking
+            utterance.onstart = () => {
+                this.updateUI('speaking');
+                this.updateStatus('Speaking...', 'NEXUS AI is responding');
+            };
+            
+            utterance.onend = () => {
+                this.updateUI('listening');
+                this.updateStatus('Listening...', 'Speak your command');
+            };
+            
             speechSynthesis.speak(utterance);
         }
     }
 
     /**
-     * Update UI
+     * Update UI visual state
      */
     updateUI(state) {
-        const vapiBtn = document.getElementById('vapi-voice-btn');
-        const vapiStatus = document.getElementById('vapi-status');
-        
-        if (!vapiBtn || !vapiStatus) return;
+        const voiceInterface = document.querySelector('.voice-interface');
+        if (!voiceInterface) return;
 
-        switch (state) {
-            case 'listening':
-                vapiBtn.classList.add('active');
-                vapiBtn.querySelector('.status-text').textContent = 'Stop Listening';
-                vapiStatus.classList.remove('hidden');
-                vapiStatus.innerHTML = '<span class="pulse-green"></span><span>Listening...</span>';
-                break;
-                
-            case 'disconnected':
-                vapiBtn.classList.remove('active');
-                vapiBtn.querySelector('.status-text').textContent = 'Talk to AI';
-                vapiStatus.classList.add('hidden');
-                break;
-                
-            case 'error':
-                vapiBtn.classList.remove('active');
-                vapiBtn.querySelector('.status-text').textContent = 'Try Again';
-                vapiStatus.classList.add('hidden');
-                break;
-        }
+        // Remove all state classes
+        voiceInterface.classList.remove('idle', 'listening', 'processing', 'speaking');
+        
+        // Add current state class
+        voiceInterface.classList.add(state);
     }
 
     /**
-     * Add message to chat
+     * Update status text
      */
-    addMessage(role, text) {
-        const chatMessages = document.getElementById('chat-messages');
-        if (!chatMessages) return;
-
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${role}`;
+    updateStatus(title, subtitle) {
+        const statusTitle = document.querySelector('.status-title');
+        const statusSubtitle = document.querySelector('.status-subtitle');
         
-        // Convert markdown to HTML for display
-        const htmlContent = this.markdownToHtml(text);
-        messageDiv.innerHTML = `<div class="message-content">${htmlContent}</div>`;
-        
-        chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        if (statusTitle) statusTitle.textContent = title;
+        if (statusSubtitle) statusSubtitle.textContent = subtitle;
     }
 
-    /**
-     * Convert basic markdown to HTML
-     */
-    markdownToHtml(text) {
-        return text
-            // Bold text
-            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-            // Italic text
-            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-            // Line breaks
-            .replace(/\n/g, '<br>')
-            // Escape HTML
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            // Re-enable our formatted tags
-            .replace(/&lt;strong&gt;/g, '<strong>')
-            .replace(/&lt;\/strong&gt;/g, '</strong>')
-            .replace(/&lt;em&gt;/g, '<em>')
-            .replace(/&lt;\/em&gt;/g, '</em>')
-            .replace(/&lt;br&gt;/g, '<br>');
-    }
 
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
 }
 
 // Global instance

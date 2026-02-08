@@ -130,7 +130,19 @@ async def process_command(request: dict):
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(webhook_url, json=payload)
             response.raise_for_status()
-            raw_result = response.json()
+            
+            # Debug: Log raw response
+            logger.info(f"📡 n8n raw response status: {response.status_code}")
+            logger.info(f"📡 n8n raw response headers: {response.headers.get('content-type')}")
+            logger.info(f"📡 n8n raw response text: {response.text[:500]}")  # First 500 chars
+            
+            # Try to parse JSON
+            try:
+                raw_result = response.json()
+            except Exception as json_error:
+                logger.error(f"❌ Failed to parse n8n response as JSON: {json_error}")
+                logger.error(f"📄 Full response text: {response.text}")
+                raise ValueError(f"n8n returned invalid JSON: {response.text[:200]}")
         
         # n8n returns array [{"text": "..."}] when using responseNode mode
         # Extract first item if it's an array
@@ -163,9 +175,62 @@ async def process_command(request: dict):
         # n8n returns 'text' field from LLM chains or structured data
         message = result.get("text") or result.get("message") or result.get("summary") or str(result)
         
-        # Clean up excessive markdown for better voice experience
-        # Replace bold ** with nothing for key information, keep minimal formatting
-        cleaned_message = message.replace("**", "")
+        # Special handling for maps queries - handle multiple travel modes
+        if result.get("service") == "maps":
+            # Extract origin and destination from multiple possible locations
+            origin = (result.get("origin") or 
+                     result.get("parameters", {}).get("origin") or 
+                     result.get("data", {}).get("origin"))
+            destination = (result.get("destination") or 
+                          result.get("parameters", {}).get("destination") or 
+                          result.get("data", {}).get("destination"))
+            
+            # Check if we have structured mode data
+            driving = result.get("driving", {})
+            walking = result.get("walking", {})
+            transit = result.get("transit", {})
+            
+            # Build voice-friendly response with all modes
+            if driving.get("distance") or walking.get("distance") or transit.get("distance"):
+                response_parts = [f"Here are the routes from {origin} to {destination}:"]
+                
+                if driving.get("distance"):
+                    response_parts.append(f"By car: {driving['distance']}, takes {driving['duration']}")
+                if walking.get("distance"):
+                    response_parts.append(f"Walking: {walking['distance']}, takes {walking['duration']}")
+                if transit.get("distance"):
+                    response_parts.append(f"By transit: {transit['distance']}, takes {transit['duration']}")
+                
+                response_parts.append("Say give me directions to open Google Maps.")
+                cleaned_message = ". ".join(response_parts)
+            else:
+                # Fallback: use the text response from n8n
+                cleaned_message = message
+                # Ensure it ends with the directions prompt
+                if "give me directions" not in cleaned_message.lower():
+                    cleaned_message += " Say give me directions to open Google Maps."
+        else:
+            # Clean up ALL markdown and special characters for better voice experience
+            cleaned_message = (message
+                .replace("**", "")      # Bold
+                .replace("*", "")       # Italic
+                .replace("###", "")     # Headers
+                .replace("##", "")
+                .replace("#", "")
+                .replace("---", "")     # Horizontal rules
+                .replace("...", "")     # Ellipsis
+                .replace("```", "")     # Code blocks
+                .replace("`", "")       # Inline code
+                .replace("~~", "")      # Strikethrough
+            )
+        
+        # Extract origin and destination for maps queries from result
+        origin = (result.get("origin") or 
+                 result.get("parameters", {}).get("origin") or 
+                 result.get("data", {}).get("origin"))
+        destination = (result.get("destination") or 
+                      result.get("parameters", {}).get("destination") or 
+                      result.get("data", {}).get("destination"))
         
         return {
             "success": True,
@@ -174,7 +239,9 @@ async def process_command(request: dict):
             "data": result,
             "service": result.get("service"),
             "action": result.get("action"),
-            "reasoning": result.get("reasoning")
+            "reasoning": result.get("reasoning"),
+            "origin": origin,
+            "destination": destination
         }
         
     except httpx.HTTPError as e:

@@ -28,61 +28,29 @@
             </div>
         </div>
 
-        <!-- Main Chat Interface -->
-        <div class="chat-container">
-            <div id="chat-messages" class="chat-messages">
-                <div class="message system">
-                    <div class="message-content">
-                        <p><strong>Welcome to NEXUS AI!</strong></p>
-                        <p>Your intelligent voice assistant for productivity automation.</p>
-                        <div class="capabilities">
-                            <div class="capability-item">
-                                <span class="capability-icon">📧</span>
-                                <span class="capability-text"><strong>Gmail</strong> - Check, summarize and reply to emails</span>
-                            </div>
-                            <div class="capability-item">
-                                <span class="capability-icon">🗺️</span>
-                                <span class="capability-text"><strong>Maps</strong> - Get directions, distances and travel times</span>
-                            </div>
-                        </div>
-                        <p class="instruction-text">Click "Talk to AI" to start a voice conversation, or type your command below.</p>
-                    </div>
+        <!-- Voice-Only Interface -->
+        <div class="voice-interface">
+            <!-- Voice Visualizer -->
+            <div class="voice-visualizer" id="voice-visualizer">
+                <div class="voice-orb">
+                    <div class="orb-ring ring-1"></div>
+                    <div class="orb-ring ring-2"></div>
+                    <div class="orb-ring ring-3"></div>
+                    <div class="orb-core"></div>
                 </div>
             </div>
 
-            <!-- Input Area -->
-            <div class="input-area">
-                <div class="voice-controls">
-                    <button id="vapi-voice-btn" class="voice-btn vapi-btn" title="Start voice conversation">
-                        <span class="mic-icon">🎤</span>
-                        <span class="status-text">Talk to AI</span>
-                    </button>
-                    <div id="vapi-status" class="vapi-status hidden">
-                        <span class="pulse-green"></span>
-                        <span>Listening...</span>
-                    </div>
-                </div>
-
-                <div class="text-input-wrapper">
-                    <input 
-                        type="text" 
-                        id="text-input" 
-                        placeholder="Or type your command here..." 
-                        class="text-input"
-                    />
-                    <button id="send-btn" class="send-btn">Send</button>
-                </div>
+            <!-- Status Text -->
+            <div class="voice-status" id="voice-status">
+                <h2 class="status-title">Ready to assist</h2>
+                <p class="status-subtitle">Press the button to start talking</p>
             </div>
-        </div>
 
-        <!-- Transcript Display -->
-        <div class="transcript-section">
-            <div class="section-header">
-                <h3>Live Transcript</h3>
-                <button id="clear-btn" class="clear-btn">Clear</button>
-            </div>
-            <div id="transcript" class="transcript">
-                <p class="placeholder">Your voice commands will appear here...</p>
+            <!-- Voice Button -->
+            <div class="voice-controls-center">
+                <button id="vapi-voice-btn" class="voice-btn-main" title="Start voice conversation">
+                    <span class="mic-icon">🎤</span>
+                </button>
             </div>
         </div>
     </div>
