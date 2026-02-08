@@ -642,10 +642,6 @@ MIT License - Copyright (c) 2026 NEXUS Labs
 - **FastAPI** - Python web framework
 - **Web Speech API** - Browser voice capabilities
 
-### Team
-
-Built with ❤️ by **Ankit Kumar**
-
 GitHub: [@ankitkr9911](https://github.com/ankitkr9911)
 
 ---
